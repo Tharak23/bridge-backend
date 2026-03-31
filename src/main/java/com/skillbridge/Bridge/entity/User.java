@@ -2,13 +2,15 @@ package com.skillbridge.Bridge.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "\"user\"")
+@Table(name = "bridge_user")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -18,6 +20,8 @@ public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(length = 36, columnDefinition = "CHAR(36)")
     private UUID id;
 
     @Column(name = "clerk_user_id", nullable = false, unique = true)

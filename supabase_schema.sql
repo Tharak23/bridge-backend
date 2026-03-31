@@ -1,3 +1,5 @@
+-- LEGACY — Postgres / Supabase only. The app uses MySQL now; apply mysql_schema.sql instead.
+--
 -- Bridge: Run this in Supabase SQL Editor (Dashboard → SQL Editor)
 -- Creates user and service_provider tables for onboarding data.
 

@@ -7,6 +7,8 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "service_provider")
@@ -19,6 +21,8 @@ public class ServiceProvider {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(length = 36, columnDefinition = "CHAR(36)")
     private UUID id;
 
     @OneToOne(fetch = FetchType.LAZY)

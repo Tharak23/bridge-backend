@@ -75,6 +75,11 @@ public class BookingService {
         m.put("hireUserName", hire != null && hire.getName() != null ? hire.getName() : "");
         m.put("hireUserPhone", hire != null && hire.getPhone() != null ? hire.getPhone() : "");
         m.put("serviceProviderId", sp != null ? sp.getId().toString() : null);
+        if (sp != null && sp.getUser() != null) {
+            m.put("providerName", sp.getUser().getName() != null ? sp.getUser().getName() : "");
+        } else {
+            m.put("providerName", "");
+        }
         return m;
     }
 

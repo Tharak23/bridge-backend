@@ -1,3 +1,5 @@
+# Spring Boot API image only (e.g. Render). MySQL is separate — see MYSQL_SETUP.md.
+#
 # Build stage
 FROM eclipse-temurin:21-jdk-alpine AS build
 WORKDIR /app

@@ -1,3 +1,5 @@
+-- LEGACY — Postgres / Supabase only. Use mysql_schema.sql for MySQL (includes booking).
+--
 -- Bridge: Add booking table only. Safe to run when user + service_provider already exist.
 -- Run this in Supabase SQL Editor. Does not touch "user" or service_provider.
 

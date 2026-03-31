@@ -5,18 +5,20 @@ import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "booking")
+@Table(name = "custom_work_request")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Booking {
+public class CustomWorkRequest {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -24,32 +26,34 @@ public class Booking {
     @Column(length = 36, columnDefinition = "CHAR(36)")
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "hire_user_id", nullable = false)
     private User hireUser;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "service_provider_id")
-    private ServiceProvider serviceProvider;
+    @Column(nullable = false, length = 64)
+    private String category;
 
-    private String serviceName;
-    private String serviceSlug;
-    private String serviceCategory;
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String description;
 
-    @Column(nullable = false, precision = 10, scale = 2)
-    private BigDecimal price;
+    private LocalDate preferredDate;
 
-    @Column(nullable = false)
-    @Builder.Default
-    private Integer quantity = 1;
+    private Integer budgetMin;
+
+    @Column(length = 512)
+    private String locationText;
 
     @Column(nullable = false, length = 32)
     @Builder.Default
-    private String status = "pending_acceptance";
+    private String status = "open";
 
-    private Instant scheduledAt;
-    private String locationText;
-    private String hireNotes;
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "linked_booking_id", length = 36, columnDefinition = "CHAR(36)")
+    private UUID linkedBookingId;
+
+    @OneToMany(mappedBy = "request", cascade = CascadeType.ALL, orphanRemoval = false)
+    @Builder.Default
+    private List<CustomWorkApplication> applications = new ArrayList<>();
 
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
