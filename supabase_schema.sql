@@ -79,13 +79,26 @@ CREATE TRIGGER service_provider_updated_at
 ALTER TABLE "user" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE service_provider ENABLE ROW LEVEL SECURITY;
 
--- Policy: allow service role / backend to do everything (backend uses service role or anon with JWT)
--- For Supabase client from frontend you'd use auth.uid(); here we rely on backend with Clerk JWT.
-CREATE POLICY "Allow all for authenticated backend" ON "user"
-  FOR ALL USING (true);
+-- Policies: create only if missing (safe to re-run whole script)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'user' AND policyname = 'Allow all for authenticated backend'
+  ) THEN
+    CREATE POLICY "Allow all for authenticated backend" ON "user" FOR ALL USING (true);
+  END IF;
+END $$;
 
-CREATE POLICY "Allow all for authenticated backend" ON service_provider
-  FOR ALL USING (true);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'service_provider' AND policyname = 'Allow all for authenticated backend'
+  ) THEN
+    CREATE POLICY "Allow all for authenticated backend" ON service_provider FOR ALL USING (true);
+  END IF;
+END $$;
 
 -- Bookings: hire user books a service; provider accepts/rejects
 CREATE TABLE IF NOT EXISTS booking (
@@ -117,11 +130,81 @@ CREATE TRIGGER booking_updated_at
   FOR EACH ROW EXECUTE PROCEDURE set_updated_at();
 
 ALTER TABLE booking ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow all for authenticated backend" ON booking FOR ALL USING (true);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'booking' AND policyname = 'Allow all for authenticated backend'
+  ) THEN
+    CREATE POLICY "Allow all for authenticated backend" ON booking FOR ALL USING (true);
+  END IF;
+END $$;
 
 COMMENT ON TABLE "user" IS 'Bridge users: hire or service_provider, linked to Clerk';
 COMMENT ON TABLE service_provider IS 'Service provider profile and onboarding data';
 COMMENT ON TABLE booking IS 'Bookings from hire users; provider accepts/rejects';
+
+-- Custom work requests (same as supabase_migration_custom_work.sql — skip if you already ran that migration)
+CREATE TABLE IF NOT EXISTS custom_work_request (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  hire_user_id UUID NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+  category TEXT NOT NULL,
+  description TEXT NOT NULL,
+  preferred_date DATE,
+  budget_min INTEGER,
+  location_text TEXT,
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'assigned', 'cancelled')),
+  linked_booking_id UUID REFERENCES booking(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS custom_work_application (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  request_id UUID NOT NULL REFERENCES custom_work_request(id) ON DELETE CASCADE,
+  service_provider_id UUID NOT NULL REFERENCES service_provider(id) ON DELETE CASCADE,
+  message TEXT,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'selected', 'rejected')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (request_id, service_provider_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_cwr_hire_user ON custom_work_request(hire_user_id);
+CREATE INDEX IF NOT EXISTS idx_cwr_status ON custom_work_request(status);
+CREATE INDEX IF NOT EXISTS idx_cwa_request ON custom_work_application(request_id);
+CREATE INDEX IF NOT EXISTS idx_cwa_provider ON custom_work_application(service_provider_id);
+
+DROP TRIGGER IF EXISTS custom_work_request_updated_at ON custom_work_request;
+CREATE TRIGGER custom_work_request_updated_at
+  BEFORE UPDATE ON custom_work_request
+  FOR EACH ROW EXECUTE PROCEDURE set_updated_at();
+
+ALTER TABLE custom_work_request ENABLE ROW LEVEL SECURITY;
+ALTER TABLE custom_work_application ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'custom_work_request' AND policyname = 'Allow all for authenticated backend'
+  ) THEN
+    CREATE POLICY "Allow all for authenticated backend" ON custom_work_request FOR ALL USING (true);
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'custom_work_application' AND policyname = 'Allow all for authenticated backend'
+  ) THEN
+    CREATE POLICY "Allow all for authenticated backend" ON custom_work_application FOR ALL USING (true);
+  END IF;
+END $$;
+
+COMMENT ON TABLE custom_work_request IS 'Hire-side custom job posts; providers apply; hire selects one → booking';
+COMMENT ON TABLE custom_work_application IS 'Provider applications to a custom_work_request';
 
 -- If you already ran this schema with working_hours/days_available as JSONB, run:
 -- ALTER TABLE service_provider ALTER COLUMN working_hours TYPE text USING working_hours::text;
