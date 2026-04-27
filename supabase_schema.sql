@@ -81,13 +81,26 @@ CREATE TRIGGER service_provider_updated_at
 ALTER TABLE "user" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE service_provider ENABLE ROW LEVEL SECURITY;
 
--- Policy: allow service role / backend to do everything (backend uses service role or anon with JWT)
--- For Supabase client from frontend you'd use auth.uid(); here we rely on backend with Clerk JWT.
-CREATE POLICY "Allow all for authenticated backend" ON "user"
-  FOR ALL USING (true);
+-- Policies: create only if missing (safe to re-run whole script)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'user' AND policyname = 'Allow all for authenticated backend'
+  ) THEN
+    CREATE POLICY "Allow all for authenticated backend" ON "user" FOR ALL USING (true);
+  END IF;
+END $$;
 
-CREATE POLICY "Allow all for authenticated backend" ON service_provider
-  FOR ALL USING (true);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'service_provider' AND policyname = 'Allow all for authenticated backend'
+  ) THEN
+    CREATE POLICY "Allow all for authenticated backend" ON service_provider FOR ALL USING (true);
+  END IF;
+END $$;
 
 -- Bookings: hire user books a service; provider accepts/rejects
 CREATE TABLE IF NOT EXISTS booking (
@@ -119,7 +132,16 @@ CREATE TRIGGER booking_updated_at
   FOR EACH ROW EXECUTE PROCEDURE set_updated_at();
 
 ALTER TABLE booking ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow all for authenticated backend" ON booking FOR ALL USING (true);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'booking' AND policyname = 'Allow all for authenticated backend'
+  ) THEN
+    CREATE POLICY "Allow all for authenticated backend" ON booking FOR ALL USING (true);
+  END IF;
+END $$;
 
 COMMENT ON TABLE "user" IS 'Bridge users: hire or service_provider, linked to Clerk';
 COMMENT ON TABLE service_provider IS 'Service provider profile and onboarding data';
